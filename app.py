@@ -426,21 +426,36 @@ elif funcao == "Risco de Reprovação Presencial":
         df['Max_Horas_Possiveis'] = df['Horas_Realizadas'].fillna(0) + df['Horas_Restantes_Possiveis']
         df['Percentual_Final_Possivel'] = (df['Max_Horas_Possiveis'] / df['Horas_Totais_Usadas']) * 100
 
-        # Indicador de risco (<75%)
-        df['Estudante em risco de reprovação presencial'] = df['Percentual_Final_Possivel'] < 75
+        # ==============================
+        # CLASSIFICAÇÃO DOS ESTUDANTES
+        # ==============================
+        def classificar_situacao(percentual):
+            if percentual < 75:
+                return "Risco de Reprovação Presencial"
+            elif 75 <= percentual < 80:
+                return "Atenção necessária"
+            else:  # percentual >= 80
+                return "Situação Ideal"
+
+        df['Classificacao'] = df['Percentual_Final_Possivel'].apply(classificar_situacao)
 
         # ==============================
         # RESUMO
         # ==============================
         total_alunos = len(df)
-        total_risco = int(df['Estudante em risco de reprovação presencial'].sum())
-        pct_risco = (total_risco / total_alunos * 100) if total_alunos > 0 else 0
+        
+        # Contagem por categoria
+        risco_count = len(df[df['Classificacao'] == "Risco de Reprovação Presencial"])
+        atencao_count = len(df[df['Classificacao'] == "Atenção necessária"])
+        ideal_count = len(df[df['Classificacao'] == "Situação Ideal"])
 
-        st.subheader("📋 Resultado — Verificação de Risco com Denominador Real")
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total de estudantes (linhas consideradas)", total_alunos)
-        col2.metric("Estudantes em risco (final possível < 75%)", total_risco)
-        col3.metric("Percentual em risco", f"{pct_risco:.1f}%")
+        st.subheader("📋 Resultado — Classificação dos Estudantes")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total de estudantes", total_alunos)
+        col2.metric("🔴 Risco de Reprovação", risco_count)
+        col3.metric("🟡 Atenção necessária", atencao_count)
+        col4.metric("🟢 Situação Ideal", ideal_count)
 
         st.write(f"**Mês:** {mes_selecionado} — **Carga ocorrida:** {carga_ocorrida}h — "
                  f"**Denominador individual conforme arquivo.**")
@@ -455,7 +470,7 @@ elif funcao == "Risco de Reprovação Presencial":
         cols_exibir += [
             ch_col, 'Horas_Realizadas', 'Horas_Totais_Arquivo', 'Horas_Totais_Usadas',
             'Percentual_Atual', 'Max_Horas_Possiveis', 'Percentual_Final_Possivel',
-            'Estudante em risco de reprovação presencial'
+            'Classificacao'
         ]
         cols_exibir = [c for c in cols_exibir if c in df.columns]
 
@@ -474,11 +489,10 @@ elif funcao == "Risco de Reprovação Presencial":
         towrite.seek(0)
 
         st.download_button(
-            label="⬇️ Baixar Relatório com Indicador de Risco (ajustado)",
+            label="⬇️ Baixar Relatório com Classificação Completa",
             data=towrite,
-            file_name="relatorio_risco_reprovacao_presencial.xlsx",
+            file_name="relatorio_classificacao_estudantes.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-        st.success("✅ Análise concluída com sucesso, considerando o denominador real de cada estudante.")
-
+        st.success("✅ Análise concluída com sucesso! Classificação aplicada a todos os estudantes.")
